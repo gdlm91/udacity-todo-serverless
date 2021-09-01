@@ -10,6 +10,25 @@ const todosTable = process.env.TODOS_TABLE;
 const docClient = new AWS.DynamoDB.DocumentClient();
 const logger = createLogger("TodosAccess");
 
+const getAllByUserId = async (userId: string): Promise<TodoItem[]> => {
+  logger.info(`get all todos for user ${userId}`);
+
+  const result = await docClient
+    .query({
+      TableName: todosTable,
+      KeyConditionExpression: "userId = :userId",
+      ExpressionAttributeValues: {
+        ":userId": userId,
+      },
+      ScanIndexForward: false,
+    })
+    .promise();
+
+  logger.info(`get all todos for user ${userId} success`, result);
+
+  return result.Items as TodoItem[];
+};
+
 const put = async (todoItem: TodoItem): Promise<TodoItem> => {
   logger.info("put todo item", todoItem);
 
@@ -71,6 +90,7 @@ const remove = async (todoId: string, userId: string): Promise<void> => {
 };
 
 export const TodosAccess = {
+  getAllByUserId,
   put,
   update,
   delete: remove,
