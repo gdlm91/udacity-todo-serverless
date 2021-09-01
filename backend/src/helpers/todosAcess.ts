@@ -9,9 +9,8 @@ import { TodoUpdate } from "../models/TodoUpdate";
 const XAWS = AWSXRay.captureAWS(AWS);
 
 const todosTable = process.env.TODOS_TABLE;
-const docClient = (
-  new XAWS.DynamoDB() as any
-).DocumentClient() as DocumentClient;
+const s3Bucket = process.env.ATTACHMENT_S3_BUCKET;
+const docClient = new (XAWS.DynamoDB as any).DocumentClient() as DocumentClient;
 const logger = createLogger("TodosAccess");
 
 const getAllByUserId = async (userId: string): Promise<TodoItem[]> => {
@@ -93,9 +92,41 @@ const remove = async (todoId: string, userId: string): Promise<void> => {
   logger.info(`delete item ${todoId} for user ${userId} success`);
 };
 
+const setAttachmentUrl = async (
+  todoId: string,
+  userId: string
+): Promise<void> => {
+  const attachmentUrl = `https://${s3Bucket}.s3.amazonaws.com/${todoId}-${userId}`;
+
+  logger.info(
+    `setting attachment url for TODO ${todoId} and user ${userId}`,
+    attachmentUrl
+  );
+
+  await docClient
+    .update({
+      TableName: todosTable,
+      Key: {
+        userId,
+        todoId,
+      },
+      UpdateExpression: "set attachmentUrl = :attachmentUrl",
+      ExpressionAttributeValues: {
+        ":attachmentUrl": attachmentUrl,
+      },
+    })
+    .promise();
+
+  logger.info(
+    `setting attachment url for TODO ${todoId} and user ${userId} success`,
+    attachmentUrl
+  );
+};
+
 export const TodosAccess = {
   getAllByUserId,
   put,
   update,
   delete: remove,
+  setAttachmentUrl,
 };
